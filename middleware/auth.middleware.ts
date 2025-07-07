@@ -1,13 +1,10 @@
 import { JwtPayload, verify } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
+import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
-interface AuthenticatedRequest extends Request {
-  user?: any | JwtPayload;
-}
-
-const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const authenticateToken = (req: ExtendedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader?.split(' ')[1];
 
@@ -29,7 +26,7 @@ const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextF
 
 
 const authorizeRoles = (...roles: any[]) => {
-    return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    return (req: ExtendedRequest, res: Response, next: NextFunction) => {
         if (!req.user || !roles.includes(req.user.role)) {
             res.status(403).json({ message: 'Access denied: insufficient role' });
             return;

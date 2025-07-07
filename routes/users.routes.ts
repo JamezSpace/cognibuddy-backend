@@ -1,15 +1,25 @@
 import express, { Router } from "express";
-import { deleteAUser, getAllUsers, postAUser } from "../controllers/users.controller";
-import { validatePostBodyRequest } from "../middleware/users.middleware";
+import { addChild, deleteAChild, deleteAUser, getAllUsers, getChildren, postAUser } from "../controllers/users.controller";
+import { authenticateParent, validateAddChildBodyRequest, validatePostBodyRequest } from "../middleware/users.middleware";
 import { validateEmptyBody } from "../middleware/util.middleware";
 
 const router = Router();
 
 router.get("/", getAllUsers);
-router.post("/", 
+router.get("/children",
+    authenticateParent,
+    getChildren);
+router.post("/",
     validateEmptyBody,
-    validatePostBodyRequest, 
-postAUser);
-router.delete("/:id", deleteAUser); 
+    validatePostBodyRequest,
+    postAUser);
+router.post('/children',
+    authenticateParent,
+    validateAddChildBodyRequest,
+    addChild)
+router.delete("/:id", deleteAUser);
+router.delete('/children/:id', 
+    authenticateParent,
+deleteAChild);
 
 export default router;

@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import bcrypt from 'bcrypt';
-import { Collection, WithId } from 'mongodb';
+import { Collection, ObjectId } from 'mongodb';
 import client from "../db-util";
-import { sign } from "jsonwebtoken";
+import { sign, verify } from "jsonwebtoken";
 
 const users: Collection = client.db("cognibuddy").collection("users");
 
@@ -37,32 +37,71 @@ const login = async (req: Request, res: Response, _next: NextFunction): Promise<
     if (role !== 'child') {
         user = await users.findOne({ email });
         if (!user) {
-            res.status(401).json({ message: "Email doesn't exist" });
+            res.status(404).json({ valid: false, message: "Email doesn't exist" });
             return;
         }
     } else {
         user = await users.findOne({ name });
         if (!user) {
-            res.status(401).json({ message: "Child name doesn't exist" });
+            res.status(404).json({ valid: false,message: "Child name doesn't exist" });
             return;
         }
     }
-
+    
     const passwordMatch = await bcrypt.compare(new String(password).toString(), user.password);
     if (!passwordMatch) {
-        res.status(401).json({ message: 'Invalid credentials' });
+        res.status(401).json({ valid: false, message: 'Invalid credentials' });
         return;
     }
-
-    const token = sign(
+    
+    const accessToken = sign(
         { id: user._id.toString(), role: user.role },
-        process.env.JSON_WEB_SECRET || '',
-        { expiresIn: '1h' }
-    );
+        process.env.JWT_WEB_SECRET || '',
+        { expiresIn: '15m' }
+    ),
+        refreshToken = sign(
+            { id: user._id.toString() }, process.env.JWT_WEB_SECRET || '', { expiresIn: '7d' }
+        );
 
-    res.json({ token });
+    res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.status(200).json({ accessToken, id: user._id.toString(), name});
+}
+
+const refreshToken = async (req: Request, res: Response, _next: NextFunction): Promise<any> => {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+        res.status(401).json({ message: 'No refresh token provided' });
+        return
+    }
+
+    try {
+        const payload: any = verify(refreshToken, process.env.JWT_WEB_SECRET || '');
+
+        const user = await users.findOne({ _id: new ObjectId(payload.id) });
+        if (!user) {
+            res.sendStatus(403).json({ message: 'User not found' });
+            return;
+        }
+
+        const newAccessToken = sign(
+            { id: payload.id, role: payload.role },
+            process.env.JWT_WEB_SECRET || '',
+            { expiresIn: '15m' }
+        );
+
+        res.status(200).json({ accessToken: newAccessToken });
+    } catch (error) {
+        res.status(403).json({ message: 'Invalid refresh token' });
+    }
 }
 
 export {
-    login, signUp
+    login, signUp, refreshToken
 };

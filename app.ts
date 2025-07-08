@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.route';
 import dashboardRoutes from './routes/dashboard.route';
 import gameRoutes from './routes/games.routes';
 import { configDotenv } from 'dotenv';
+import logRequests from './middleware/logger.middleware';
 
 configDotenv();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Mount the routes
+app.use(logRequests);
 app.use("/api/users", usersRoutes);
 app.use("/api/games", gameRoutes);
 app.use("/api/auth", authRoutes);

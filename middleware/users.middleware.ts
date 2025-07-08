@@ -3,7 +3,7 @@ import { MyJwtPayload } from "../interfaces/MyJwtPayload.interface";
 import { JwtPayload, verify } from "jsonwebtoken";
 
 interface ExtendedRequest extends Request {
-  user?: any | JwtPayload;
+    user?: any | JwtPayload;
 }
 
 const validatePostBodyRequest = (req: Request, res: Response, next: NextFunction) => {
@@ -42,7 +42,7 @@ const authenticateParent = (req: ExtendedRequest, res: Response, next: NextFunct
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     try {
         const decoded = verify(token, process.env.JWT_WEB_SECRET || '');
 
@@ -60,8 +60,37 @@ const authenticateParent = (req: ExtendedRequest, res: Response, next: NextFunct
     }
 }
 
+
+const authenticateChild = (req: ExtendedRequest, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'Unauthorized: No token provided' });
+        return
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const decoded = verify(token, process.env.JWT_WEB_SECRET || '') as MyJwtPayload;
+
+        if (decoded.role !== 'child') {
+            res.status(403).json({ error: 'Forbidden: Only children can access this resource' });
+            return
+        }
+
+        req.user = decoded; 
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Unauthorized: Invalid token' });
+        return
+    }
+}
+
+
 export {
     validatePostBodyRequest,
     validateAddChildBodyRequest,
-    authenticateParent
+    authenticateParent,
+    authenticateChild
 }

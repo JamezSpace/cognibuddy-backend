@@ -3,6 +3,7 @@ import cors from 'cors';
 import usersRoutes from './routes/users.routes';
 import authRoutes from './routes/auth.route';
 import dashboardRoutes from './routes/dashboard.route';
+import gameRoutes from './routes/games.routes';
 import { configDotenv } from 'dotenv';
 
 configDotenv();
@@ -17,8 +18,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Mount the users routes
+// Mount the routes
 app.use("/api/users", usersRoutes);
+app.use("/api/games", gameRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 

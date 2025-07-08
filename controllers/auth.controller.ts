@@ -43,17 +43,17 @@ const login = async (req: Request, res: Response, _next: NextFunction): Promise<
     } else {
         user = await users.findOne({ name });
         if (!user) {
-            res.status(404).json({ valid: false,message: "Child name doesn't exist" });
+            res.status(404).json({ valid: false, message: "Child name doesn't exist" });
             return;
         }
     }
-    
+
     const passwordMatch = await bcrypt.compare(new String(password).toString(), user.password);
     if (!passwordMatch) {
         res.status(401).json({ valid: false, message: 'Invalid credentials' });
         return;
     }
-    
+
     const accessToken = sign(
         { id: user._id.toString(), role: user.role },
         process.env.JWT_WEB_SECRET || '',
@@ -70,7 +70,7 @@ const login = async (req: Request, res: Response, _next: NextFunction): Promise<
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    res.status(200).json({ accessToken, id: user._id.toString(), name});
+    res.status(200).json({ accessToken, id: user._id.toString(), name: user.name });
 }
 
 const refreshToken = async (req: Request, res: Response, _next: NextFunction): Promise<any> => {

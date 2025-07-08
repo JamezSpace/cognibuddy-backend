@@ -1,4 +1,4 @@
-import express, { Router } from "express";
+import { Router } from "express";
 import { addChild, deleteAChild, deleteAUser, getAllUsers, getChildren, postAUser } from "../controllers/users.controller";
 import { authenticateParent, validateAddChildBodyRequest, validatePostBodyRequest } from "../middleware/users.middleware";
 import { validateEmptyBody } from "../middleware/util.middleware";

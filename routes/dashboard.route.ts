@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { authorizeRoles } from '../middleware/auth.middleware';
+import { authenticateChild } from '../middleware/users.middleware';
 
 const router: Router = Router();
 

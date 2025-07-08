@@ -75,10 +75,53 @@ const getChildren = async (req: ExtendedRequest, res: Response) => {
     try {
         const parentId = req.user.id;
 
-        const children = await users
-            .find({ parent_id: new ObjectId(parentId), role: 'child' })
-            .project({ name: 1, age: 1, games_played: 1, badges_won: 1 }) // adjust fields as needed
-            .toArray();
+        const children = await users.aggregate([
+            {
+                $match: {
+                    parent_id: new ObjectId(parentId),
+                    role: 'child'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'games',
+                    localField: '_id',
+                    foreignField: 'child_id',
+                    as: 'game_stats'
+                }
+            },
+            {
+                $addFields: {
+                    games_played: { $size: '$game_stats' },
+                    best_score: { $max: '$game_stats.score' },
+                    average_score: { $avg: '$game_stats.score' },
+                    badges: {
+                        $cond: [
+                            { $gte: [{ $avg: '$game_stats.score' }, 90] },
+                            ['🥇 Gold'],
+                            {
+                                $cond: [
+                                    { $gte: [{ $avg: '$game_stats.score' }, 75] },
+                                    ['🥈 Silver'],
+                                    ['🥉 Bronze']
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    age: 1,
+                    games_played: 1,
+                    best_score: 1,
+                    average_score: 1,
+                    badges: 1
+                }
+            }
+        ]).toArray();
+
 
         res.json({ status: 'success', data: children });
     } catch (err) {

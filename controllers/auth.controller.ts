@@ -73,6 +73,11 @@ const login = async (req: Request, res: Response): Promise<any> => {
         return
     }
 
+    if (!user.verified) {
+        res.status(403).json({ message: 'Email not verified. Please confirm your email.' });
+        return
+    }
+
     const accessToken = sign(
         { id: user._id.toString(), role: user.role },
         process.env.JWT_WEB_SECRET || '',

@@ -59,11 +59,6 @@ const login = async (req: Request, res: Response): Promise<any> => {
             return
         }
     } else {
-        if (!parent_id) {
-            res.status(400).json({ valid: false, message: "Parent ID is required for child login" });
-            return
-        }
-
         user = await users.findOne({ username: name, role: 'child' });
 
         if (!user) {

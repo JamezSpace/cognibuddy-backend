@@ -5,6 +5,7 @@ import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
 
 const games: Collection = client.db("cognibuddy").collection("games");
+const gameLimits = client.db("cognibuddy").collection("game_limits");
 
 const saveGameProgress = async (req: ExtendedRequest, res: Response) => {
     try {
@@ -97,9 +98,44 @@ const getAllGameSummary = async (req: ExtendedRequest, res: Response) => {
 };
 
 
+const getGameLimit = async (req: ExtendedRequest, res: Response) => {
+    try {
+        const childId = req.params.child_id;
+        const result = await gameLimits.findOne({ child_id: new ObjectId(childId) });
+        res.json({ status: 'success', data: result || {} });
+    } catch (err) {
+        console.error('Failed to fetch game limits:', err);
+        res.status(500).json({ status: 'error', message: 'Failed to fetch limits' });
+    }
+};
+
+const setGameLimit = async (req: ExtendedRequest, res: Response) => {
+  try {
+    const { child_id, restricted_games, session_limit } = req.body;
+
+    await gameLimits.updateOne(
+      { child_id: new ObjectId(child_id) },
+      {
+        $set: {
+          restricted_games,
+          session_limit: session_limit || null
+        }
+      },
+      { upsert: true }
+    );
+
+    res.json({ status: 'success' });
+  } catch (err) {
+    console.error('Failed to set game limits:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to update game limits' });
+  }
+};
+
 
 export {
     saveGameProgress,
     getGameProgress,
-    getAllGameSummary
+    getAllGameSummary,
+    getGameLimit,
+    setGameLimit
 }

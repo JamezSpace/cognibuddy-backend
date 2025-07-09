@@ -2,8 +2,6 @@ import { verify } from "jsonwebtoken";
 import { Response, NextFunction } from "express";
 import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
-const JWT_SECRET = process.env.JWT_SECRET || '';
-
 const authenticateToken = (req: ExtendedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader?.split(' ')[1];
@@ -13,15 +11,14 @@ const authenticateToken = (req: ExtendedRequest, res: Response, next: NextFuncti
         return
     }
 
-    verify(token, JWT_SECRET, (err, decoded) => {
-        if (err) {
-            res.sendStatus(403);
-            return;
-        }
-
+    try {
+        const decoded = verify(token, process.env.JWT_WEB_SECRET || '');
         req.user = decoded; // contains { id, role }
         next();
-    });
+    } catch (err) {
+        res.sendStatus(403);
+        return;
+    }
 }
 
 

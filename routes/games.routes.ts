@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllGameSummary, getGameLimit, getGameProgress, saveGameProgress, setGameLimit } from "../controllers/games.controller";
+import { getAllGameLimits, getAllGameSummary, getGameLimit, getGameProgress, getTodayCount, saveGameProgress, setGameLimit } from "../controllers/games.controller";
 import { authenticateChild, authenticateParent } from "../middleware/users.middleware";
 
 const router = Router();
@@ -10,11 +10,11 @@ getGameProgress);
 router.post('/:game_name',
     authenticateChild,
 saveGameProgress);
+router.get('/:game_name/today-count', authenticateChild, getTodayCount);
 router.get('/summary', authenticateChild, getAllGameSummary);
-router.post('/', authenticateParent, setGameLimit);
-router.get('/:child_id', authenticateParent, getGameLimit);
-
-
+router.post('/limits', authenticateParent, setGameLimit);
+router.get('/limits', authenticateParent, getAllGameLimits);
+router.get('/limits/:child_id', authenticateParent, getGameLimit);
 
 
 export default router;

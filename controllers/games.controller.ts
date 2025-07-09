@@ -97,11 +97,25 @@ const getAllGameSummary = async (req: ExtendedRequest, res: Response) => {
     }
 };
 
+const getAllGameLimits = async (req: ExtendedRequest, res: Response) => {
+    try {
+        const result = await gameLimits.find().toArray();
+        res.json({ status: 'success', data: result });
+    } catch (err) {
+        res.status(500).json({ status: 'error', message: 'Failed to fetch all limits' });
+    }
+};
+
 
 const getGameLimit = async (req: ExtendedRequest, res: Response) => {
     try {
         const childId = req.params.child_id;
-        const result = await gameLimits.findOne({ child_id: new ObjectId(childId) });
+        console.log(childId);
+
+        let result;
+        if (!childId) result = await gameLimits.find().toArray()
+        else result = await gameLimits.findOne({ child_id: new ObjectId(childId) });
+
         res.json({ status: 'success', data: result || {} });
     } catch (err) {
         console.error('Failed to fetch game limits:', err);
@@ -110,32 +124,49 @@ const getGameLimit = async (req: ExtendedRequest, res: Response) => {
 };
 
 const setGameLimit = async (req: ExtendedRequest, res: Response) => {
-  try {
-    const { child_id, restricted_games, session_limit } = req.body;
+    try {
+        const { child_id, restricted_games, session_limit } = req.body;
 
-    await gameLimits.updateOne(
-      { child_id: new ObjectId(child_id) },
-      {
-        $set: {
-          restricted_games,
-          session_limit: session_limit || null
-        }
-      },
-      { upsert: true }
-    );
+        await gameLimits.updateOne(
+            { child_id: new ObjectId(child_id) },
+            {
+                $set: {
+                    restricted_games,
+                    session_limit: session_limit || null
+                }
+            },
+            { upsert: true }
+        );
 
-    res.json({ status: 'success' });
-  } catch (err) {
-    console.error('Failed to set game limits:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to update game limits' });
-  }
+        res.json({ status: 'success' });
+    } catch (err) {
+        console.error('Failed to set game limits:', err);
+        res.status(500).json({ status: 'error', message: 'Failed to update game limits' });
+    }
 };
 
+const getTodayCount = async (req: ExtendedRequest, res: Response) => {
+    const { game_name } = req.params;
+    const childId = req.user.id;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const count = await games.countDocuments({
+        child_id: new ObjectId(childId),
+        game: game_name,
+        date_played: { $gte: startOfDay }
+    });
+
+    res.json({ status: 'success', count });
+}
 
 export {
     saveGameProgress,
     getGameProgress,
     getAllGameSummary,
+    getAllGameLimits,
     getGameLimit,
-    setGameLimit
+    setGameLimit,
+    getTodayCount
 }

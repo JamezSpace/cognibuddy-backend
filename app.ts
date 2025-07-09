@@ -6,6 +6,7 @@ import dashboardRoutes from './routes/dashboard.route';
 import gameRoutes from './routes/games.routes';
 import { configDotenv } from 'dotenv';
 import logRequests from './middleware/logger.middleware';
+import adminRoutes from './routes/admin.routes';
 
 configDotenv();
 
@@ -25,6 +26,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/games", gameRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRoutes)
 
 
 app.get("/api", (req: Request, res: Response) => {

@@ -1,7 +1,7 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { authorizeRoles } from '../middleware/auth.middleware';
-import { authenticateChild } from '../middleware/users.middleware';
+import { getActivityLog } from '../controllers/dashboard.controller';
 
 const router: Router = Router();
 
@@ -13,6 +13,11 @@ router.get('/parent',
         res.send('Hello Parent!');
     }
 );
+
+router.get('/parent/child-activity-log',
+    authenticateToken,
+    getActivityLog
+)
 
 // Child + Parent can access this
 router.get('/play',

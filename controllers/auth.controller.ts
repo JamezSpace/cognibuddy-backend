@@ -3,65 +3,92 @@ import bcrypt from 'bcrypt';
 import { Collection, ObjectId } from 'mongodb';
 import client from "../db-util";
 import { sign, verify } from "jsonwebtoken";
+import crypto from "crypto";
+import { sendVerificationEmail } from "../utils/mailer.util";
 
 const users: Collection = client.db("cognibuddy").collection("users");
 
-const signUp = async (req: Request, res: Response, _next: NextFunction): Promise<any> => {
+const signUp = async (req: Request, res: Response): Promise<any> => {
     const { name, email, password, role } = req.body;
 
-    if (role !== 'child') {
-        const existingUser = await users.findOne({ email });
-        if (existingUser) {
-            res.status(409).json({ message: 'Email already exists' });
-            return
+    try {
+        if (role !== 'child') {
+            const existingUser = await users.findOne({ email });
+            if (existingUser) {
+                return res.status(409).json({ message: 'Email already exists' });
+            }
         }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // generate a unique token for email verification
+        const emailToken = crypto.randomBytes(32).toString('hex');
+        const verificationExpires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
+
+        const result = await users.insertOne({
+            name,
+            email,
+            password: hashedPassword,
+            role,
+            verified: false,
+            emailToken,
+            emailTokenExpires: verificationExpires
+        });
+
+        const verificationLink = `${process.env.CORS_ORIGIN}/verify-email?token=${emailToken}`;
+        await sendVerificationEmail(email, name, verificationLink);
+
+        return res.status(201).json({
+            message: 'Signup successful. Please check your email to verify your account.',
+            userId: result.insertedId
+        });
+    } catch (err) {
+        console.error('Signup error:', err);
+        return res.status(500).json({ message: 'Server error' });
     }
+};
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const result = await users.insertOne({
-        name,
-        email,
-        password: hashedPassword,
-        role
-    });
-
-    res.status(201).json({ message: 'User created', userId: result.insertedId });
-}
-
-// 68677e6a73e33999bb46dc0d
-const login = async (req: Request, res: Response, _next: NextFunction): Promise<any> => {
-    const { name, email, password, role } = req.body;
+const login = async (req: Request, res: Response): Promise<any> => {
+    const { name, email, password, role, parent_id } = req.body;
     let user: any;
 
     if (role !== 'child') {
         user = await users.findOne({ email });
         if (!user) {
-            res.status(404).json({ valid: false, message: "Email doesn't exist" });
-            return;
+            res.status(404).json({ valid: false, message: 'Username not found' });
+            return
         }
     } else {
-        user = await users.findOne({ name });
+        if (!parent_id) {
+            res.status(400).json({ valid: false, message: "Parent ID is required for child login" });
+            return
+        }
+
+        user = await users.findOne({ username: name, role: 'child' });
+
         if (!user) {
-            res.status(404).json({ valid: false, message: "Child name doesn't exist" });
-            return;
+            res.status(404).json({ valid: false, message: 'Username not found' });
+            return
         }
     }
 
-    const passwordMatch = await bcrypt.compare(new String(password).toString(), user.password);
+    const passwordMatch = await bcrypt.compare(password.toString(), user.password);
     if (!passwordMatch) {
         res.status(401).json({ valid: false, message: 'Invalid credentials' });
-        return;
+        return
     }
 
     const accessToken = sign(
         { id: user._id.toString(), role: user.role },
         process.env.JWT_WEB_SECRET || '',
         { expiresIn: '15m' }
-    ),
-        refreshToken = sign(
-            { id: user._id.toString() }, process.env.JWT_WEB_SECRET || '', { expiresIn: '7d' }
-        );
+    );
+
+    const refreshToken = sign(
+        { id: user._id.toString() },
+        process.env.JWT_WEB_SECRET || '',
+        { expiresIn: '7d' }
+    );
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
@@ -71,7 +98,8 @@ const login = async (req: Request, res: Response, _next: NextFunction): Promise<
     });
 
     res.status(200).json({ accessToken, id: user._id.toString(), name: user.name });
-}
+};
+
 
 const refreshToken = async (req: Request, res: Response, _next: NextFunction): Promise<any> => {
     const refreshToken = req.cookies.refreshToken;
@@ -102,6 +130,47 @@ const refreshToken = async (req: Request, res: Response, _next: NextFunction): P
     }
 }
 
+const verifyEmail = async (req: Request, res: Response) => {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+        res.status(400).json({ message: 'Verification token is required.' });
+        return
+    }
+
+    try {
+        const user = await users.findOne({ emailToken: token });
+
+        if (!user) {
+            res.status(400).json({ message: 'Invalid or expired token.' });
+            return
+        }
+
+        if (user.verified) {
+            res.status(200).json({ message: 'Email already verified.' });
+            return
+        }
+
+        if (new Date() > new Date(user.emailTokenExpires)) {
+            res.status(400).json({ message: 'Verification token has expired.' });
+            return
+        }
+
+        await users.updateOne(
+            { _id: new ObjectId(user._id) },
+            {
+                $set: { verified: true },
+                $unset: { emailToken: "", emailTokenExpires: "" }
+            }
+        );
+
+        res.status(200).json({ message: 'Email verified successfully. You can now log in.' });
+    } catch (err) {
+        console.error('Verification error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
 export {
-    login, signUp, refreshToken
+    login, signUp, refreshToken, verifyEmail
 };

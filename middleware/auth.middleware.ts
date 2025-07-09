@@ -1,5 +1,5 @@
-import { JwtPayload, verify } from "jsonwebtoken";
-import { Request, Response, NextFunction } from "express";
+import { verify } from "jsonwebtoken";
+import { Response, NextFunction } from "express";
 import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
 const JWT_SECRET = process.env.JWT_SECRET || '';

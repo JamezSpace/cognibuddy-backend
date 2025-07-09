@@ -7,6 +7,20 @@ import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
 const users: Collection = client.db("cognibuddy").collection("users");
 
+const generateChildUsername = async (name: string): Promise<string> => {
+    const base = name.trim().toLowerCase().replace(/\s+/g, '');
+    let username = `${base}${Math.floor(Math.random() * 900 + 100)}`; // e.g., tobi123
+
+    // Ensure uniqueness in DB
+    while (await users.findOne({ username })) {
+        username = `${base}${Math.floor(Math.random() * 900 + 100)}`;
+    }
+
+    return username;
+};
+
+
+
 const getAllUsers = async (req: Request, res: Response) => {
     try {
         const userList = await users.find().toArray();
@@ -53,17 +67,20 @@ const addChild = async (req: ExtendedRequest, res: Response) => {
         const parentId = req.user.id;
 
         const hashedPin = await bcrypt.hash(pin, 10);
+        const username = await generateChildUsername(name);
 
         const newChild = {
             name,
+            username,
             password: hashedPin,
             role: 'child',
-            parent_id: new ObjectId(parentId)
+            parent_id: new ObjectId(parentId),
+            created_at: new Date()
         };
 
         await users.insertOne(newChild);
 
-        res.status(201).json({ status: "success", message: 'Child added successfully' });
+        res.status(201).json({ status: "success", message: 'Child added successfully', username });
         return;
     } catch (error) {
         console.error(error);
@@ -113,6 +130,7 @@ const getChildren = async (req: ExtendedRequest, res: Response) => {
             {
                 $project: {
                     name: 1,
+                    username:1,
                     age: 1,
                     games_played: 1,
                     best_score: 1,

@@ -75,7 +75,8 @@ const addChild = async (req: ExtendedRequest, res: Response) => {
             password: hashedPin,
             role: 'child',
             parent_id: new ObjectId(parentId),
-            created_at: new Date()
+            created_at: new Date(),
+            verfied: true
         };
 
         await users.insertOne(newChild);

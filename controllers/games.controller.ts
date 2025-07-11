@@ -3,7 +3,7 @@ import { Collection, ObjectId } from "mongodb";
 import client from "../db-util";
 import { ExtendedRequest } from "../interfaces/ExtendedRequested.interface";
 
-
+const users: Collection = client.db("cognibuddy").collection("users");
 const games: Collection = client.db("cognibuddy").collection("games");
 const gameLimits = client.db("cognibuddy").collection("game_limits");
 
@@ -97,6 +97,69 @@ const getAllGameSummary = async (req: ExtendedRequest, res: Response) => {
     }
 };
 
+const getChildrenProgressSummary = async (req: ExtendedRequest, res: Response) => {
+    try {
+        const parentId = new ObjectId(req.user.id);
+
+        // Fetch all children of this parent
+        const children = await users
+            .find({ parent_id: parentId, role: 'child' })
+            .project({ name: 1 })
+            .toArray();
+
+        const childSummaries = await Promise.all(
+            children.map(async child => {
+                const gameSummary = await games
+                    .aggregate([
+                        { $match: { child_id: child._id } },
+                        {
+                            $group: {
+                                _id: '$game',
+                                avgScore: { $avg: '$score' },
+                                lastScore: { $first: '$score' },
+                                lastPlayed: { $first: '$date_played' }
+                            }
+                        },
+                        {
+                            $project: {
+                                game: '$_id',
+                                avgScore: { $round: ['$avgScore', 0] },
+                                lastScore: 1,
+                                lastPlayed: 1,
+                                badges: {
+                                    $cond: [
+                                        { $gte: ['$avgScore', 90] },
+                                        ['🥇 Gold'],
+                                        {
+                                            $cond: [
+                                                { $gte: ['$avgScore', 75] },
+                                                ['🥈 Silver'],
+                                                ['🥉 Bronze']
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ])
+                    .toArray();
+
+                return {
+                    child_id: child._id,
+                    name: child.name,
+                    progress: gameSummary
+                };
+            })
+        );
+
+        res.json({ status: 'success', data: childSummaries });
+    } catch (err) {
+        console.error('Failed to get children progress:', err);
+        res.status(500).json({ status: 'error', message: 'Failed to fetch progress summary' });
+    }
+};
+
+
 const getAllGameLimits = async (req: ExtendedRequest, res: Response) => {
     try {
         const result = await gameLimits.find().toArray();
@@ -166,6 +229,7 @@ export {
     getGameProgress,
     getAllGameSummary,
     getAllGameLimits,
+    getChildrenProgressSummary,
     getGameLimit,
     setGameLimit,
     getTodayCount

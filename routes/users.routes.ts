@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addChild, deleteAChild, deleteAUser, getAllUsers, getChildren, postAUser } from "../controllers/users.controller";
+import { addChild, deleteAChild, deleteAUser, editChild, getAllUsers, getChildren, postAUser } from "../controllers/users.controller";
 import { authenticateParent, validateAddChildBodyRequest, validatePostBodyRequest } from "../middleware/users.middleware";
 import { validateEmptyBody } from "../middleware/util.middleware";
 
@@ -17,6 +17,9 @@ router.post('/children',
     authenticateParent,
     validateAddChildBodyRequest,
     addChild)
+router.patch('/children/:id',
+    authenticateParent,
+editChild)
 router.delete("/:id", deleteAUser);
 router.delete('/children/:id', 
     authenticateParent,

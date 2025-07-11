@@ -130,7 +130,7 @@ const getChildren = async (req: ExtendedRequest, res: Response) => {
             {
                 $project: {
                     name: 1,
-                    username:1,
+                    username: 1,
                     age: 1,
                     games_played: 1,
                     best_score: 1,
@@ -176,11 +176,54 @@ const deleteAChild = async (req: ExtendedRequest, res: Response) => {
     }
 }
 
+const editChild = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, newPin } = req.body;
+
+    try {
+        const existingChild = await users.findOne({ _id: new ObjectId(id), role: 'child' });
+
+        if (!existingChild) {
+            res.status(404).json({ message: 'Child not found' });
+            return
+        }
+
+        const updateFields: any = {};
+
+        // If name is provided, update name and regenerate username
+        if (name) {
+            updateFields.name = name;
+            updateFields.username = await generateChildUsername(name);
+            updateFields.verified = true;
+        }
+
+        // If pin is provided, hash and update
+        if (newPin) {
+            const hashedPin = await bcrypt.hash(newPin, 10);
+            updateFields.password = hashedPin;
+        }
+
+        if (Object.keys(updateFields).length === 0) {
+            res.status(400).json({ message: 'No update fields provided' });
+            return
+        }
+
+        await users.updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
+
+        res.status(200).json({ status: 'success', message: 'Child updated successfully', username: updateFields.username });
+    } catch (error) {
+        console.error('Error updating child:', error);
+        res.status(500).json({ message: 'Internal server error' });
+        return
+    }
+}
+
 export {
     getAllUsers,
     postAUser,
     deleteAUser,
     addChild,
     getChildren,
-    deleteAChild
+    deleteAChild,
+    editChild
 }

@@ -9,6 +9,6 @@ Cognibuddy Backend is the Node.js/Express server for the Cognibuddy platform —
 - Email Notifications
 
 ## Stacks Used
-Server: <b>Node.js + Express.js</b>
+Server: <b>Node.js + Express.js</b> <br>
 Database: MongoDB (official Node.js driver)
 
